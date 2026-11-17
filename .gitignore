@@ -1,8 +1,4 @@
 
-
-
-
-
 .env
 
 mongo/
@@ -12,3 +8,8 @@ build/
 coverage/
 /postgres/
 !src/data/postgres/
+
+# Resultados generados por las pruebas de rendimiento
+performance/results/
+performance/gatling/target/
+performance/gatling/src/test/resources/perf-users.csv

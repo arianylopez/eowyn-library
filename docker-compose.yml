@@ -1,27 +1,27 @@
-version: '3.8'
-
+# Servicios de infraestructura para el entorno local de eowyn-library.
+# Uso: docker compose up -d
+#
+# NOTA: el puerto del host es 5433 (no 5432) porque en el equipo de QA el
+# puerto 5432 ya está ocupado por otro contenedor. Debe coincidir con PG_URL
+# definido en el archivo .env.
 
 services:
 
-  # mongo-db:
-  #   image: mongo:6.0.6
-  #   restart: always
-  #   environment:
-  #     MONGO_INITDB_ROOT_USERNAME: mongo-user
-  #     MONGO_INITDB_ROOT_PASSWORD: 123456
-  #   volumes:
-  #     - ./mongo:/data/db
-  #   ports:
-  #     - 27017:27017
-
   postgres-db:
     image: postgres:15.3
+    container_name: eowyn-library-db
     restart: always
     environment:
       POSTGRES_USER: gandalf
       POSTGRES_DB: eowyn-library
       POSTGRES_PASSWORD: 123456
     volumes:
+      # Los datos se persisten en ./postgres (ignorado por git).
       - ./postgres:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gandalf -d eowyn-library"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

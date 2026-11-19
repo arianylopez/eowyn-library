@@ -27,8 +27,13 @@ export const LoanModel = {
 
   async createLoanWithTransaction(loanDto: CreateLoanDTO) {
     return await db.transaction(async (trx) => {
+      // Serialize loans for a member even when requests target different books.
+      const user = await trx('users').where({ id: loanDto.userId }).forUpdate().first();
+      if (!user || !user.role.includes('USER_ROLE')) {
+        throw CustomError.badRequest('User does not exist or is not a member');
+      }
       const book = await trx('books')
-        .where({ id: loanDto.bookId })
+        .where({ id: loanDto.bookId, is_deleted: false })
         .forUpdate()
         .first();
 
@@ -38,6 +43,16 @@ export const LoanModel = {
 
       if (book.available_quantity <= 0) {
         throw CustomError.badRequest(`Book with id: ${loanDto.bookId} has no available copies`);
+      }
+
+      const activeLoans = await trx(LOAN_TABLE)
+        .where({ user_id: loanDto.userId })
+        .whereIn('status', ['ongoing', 'overdue']);
+      if (activeLoans.some((loan) => loan.book_id === loanDto.bookId)) {
+        throw CustomError.badRequest('User already has an active loan for this book');
+      }
+      if (activeLoans.length >= 3) {
+        throw CustomError.badRequest('User has reached the maximum number of active loans (3)');
       }
 
       const [loan] = await trx(LOAN_TABLE)
@@ -70,6 +85,9 @@ export const LoanModel = {
         .first();
       if (!loan) {
         throw CustomError.badRequest(`Loan with id: ${id} does not exist`);
+      }
+      if (!['ongoing', 'overdue'].includes(loan.status)) {
+        throw CustomError.badRequest(`Loan with id: ${id} has already been returned`);
       }
       const [updatedLoan] = await trx(LOAN_TABLE)
         .where({ id })

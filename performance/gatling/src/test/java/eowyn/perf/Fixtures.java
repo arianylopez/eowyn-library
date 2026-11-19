@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -39,6 +40,7 @@ public final class Fixtures {
   public static String adminToken;
   public static final List<Integer> bookIds = new ArrayList<>();
   public static final List<Integer> categoryIds = new ArrayList<>();
+  private static final Map<String, String> userTokens = new HashMap<>();
 
   private Fixtures() {
   }
@@ -46,6 +48,11 @@ public final class Fixtures {
   /** Se invoca una vez antes de cada simulación. */
   public static void load() {
     adminToken = login(ADMIN_EMAIL, ADMIN_PASSWORD);
+    userTokens.clear();
+    for (int i = 1; i <= 30; i++) {
+      String email = String.format("perf.user%02d@eowyn.test", i);
+      userTokens.put(email, login(email, "123456"));
+    }
 
     JsonNode books = getJson("/api/books?page=1&limit=200", adminToken);
     bookIds.clear();
@@ -73,6 +80,7 @@ public final class Fixtures {
     try {
       String body = MAPPER.writeValueAsString(Map.of("email", email, "password", password));
       HttpRequest request = HttpRequest.newBuilder(URI.create(BASE_URL + "/api/auth/login"))
+          .timeout(Duration.ofSeconds(15))
           .header("Content-Type", "application/json")
           .POST(HttpRequest.BodyPublishers.ofString(body))
           .build();
@@ -92,6 +100,7 @@ public final class Fixtures {
   public static JsonNode getJson(String path, String token) {
     try {
       HttpRequest request = HttpRequest.newBuilder(URI.create(BASE_URL + path))
+          .timeout(Duration.ofSeconds(15))
           .header("Authorization", "Bearer " + token)
           .GET()
           .build();
@@ -110,6 +119,12 @@ public final class Fixtures {
 
   public static int randomBookId() {
     return bookIds.get(ThreadLocalRandom.current().nextInt(bookIds.size()));
+  }
+
+  public static String userToken(String email) {
+    String token = userTokens.get(email);
+    if (token == null) throw new IllegalStateException("No token for " + email);
+    return token;
   }
 
   public static int randomCategoryId() {

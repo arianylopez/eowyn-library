@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { sleep } from 'k6';
+import { check, sleep } from 'k6';
 import { Counter } from 'k6/metrics';
 import {
   setupData,
@@ -60,6 +60,10 @@ export default function (data) {
   if (res.status === 201) {
     expect('devolver préstamo', returnLoan(user.token, res.json('id')), 200);
   } else {
+    check(res, {
+      'rechazo de negocio esperado': (r) => r.status === 400 &&
+        /has no available copies|already has an active loan|maximum number of active loans/.test(r.body),
+    });
     rejected.add(1);
   }
 

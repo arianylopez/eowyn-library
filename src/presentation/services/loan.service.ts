@@ -34,6 +34,7 @@ export class LoanService {
       };
 
     } catch (error) {
+      if (error instanceof CustomError) throw error;
       console.error(error);
       throw CustomError.internalServer(`There was an error creating the loan`);
     }
@@ -57,6 +58,7 @@ export class LoanService {
         status: returnedLoan.status,
       };
     } catch (error) {
+      if (error instanceof CustomError) throw error;
       console.error(error);
       throw CustomError.internalServer(`There was an error returning the loan`);
     }

@@ -12,9 +12,11 @@
     "perf:seed": "node performance/scripts/seed-perf-data.js",
     "perf:reset": "node performance/scripts/reset-perf-data.js",
     "perf:clean": "./performance/scripts/clean-results.sh",
-    "perf:smoke": "k6 run performance/k6/scenarios/00-smoke.js",
+    "perf:smoke": "node performance/scripts/run-performance.js k6 00-smoke",
+    "perf:k6": "node performance/scripts/run-performance.js k6",
+    "perf:gatling": "node performance/scripts/run-performance.js gatling",
+    "test": "npm run build && node --test performance/tests/*.test.js",
     "perf:report": "node performance/scripts/generate-report.js"
-
   },
   "keywords": [],
   "author": "",
@@ -25,6 +27,8 @@
     "@types/node": "^20.8.0",
     "@types/nodemailer": "^7.0.2",
     "@types/pg": "^8.15.5",
+    "newman": "^6.2.3",
+    "newman-reporter-htmlextra": "^1.23.1",
     "rimraf": "^5.0.5",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

@@ -22,10 +22,7 @@ public class CatalogLoadSimulation extends Simulation {
 
   private final ScenarioBuilder scenario = scenario("S2 - Catálogo")
       .feed(csv("perf-users.csv").circular())
-      .exec(http("POST /api/auth/login")
-          .post("/api/auth/login")
-          .body(StringBody("{\"email\":\"#{email}\",\"password\":\"#{password}\"}"))
-          .check(status().is(200), jsonPath("$.token").saveAs("token")))
+      .exec(session -> session.set("token", Fixtures.userToken(session.getString("email"))))
       .exec(session -> session
           .set("page", 1 + (int) (Math.random() * 3))
           .set("limit", new int[]{5, 10, 20}[(int) (Math.random() * 3)]))
@@ -44,6 +41,11 @@ public class CatalogLoadSimulation extends Simulation {
           )
       )
       .pause(Duration.ofMillis(500), Duration.ofMillis(1500));
+
+  @Override
+  public void before() {
+    Fixtures.load();
+  }
 
   {
     setUp(

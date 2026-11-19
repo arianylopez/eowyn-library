@@ -8,18 +8,26 @@
  *   node performance/scripts/generate-report.js <dir-resumenes> <salida.html>
  *
  * Salida por defecto:
- *   performance/results/report.html
+ *   report.html dentro de la ejecución k6 más reciente
  */
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
 
-const RESULTS_DIR = path.resolve(
-  process.argv[2] || path.join(__dirname, '..', 'results', 'k6')
-);
+function latestResults() {
+  const root = path.join(__dirname, '..', 'results');
+  const legacy = path.join(root, 'k6');
+  if (!fs.existsSync(root)) return legacy;
+  const candidates = [legacy, ...fs.readdirSync(root, { withFileTypes: true })
+    .filter(entry => entry.isDirectory()).map(entry => path.join(root, entry.name, 'k6'))];
+  return candidates.filter(dir => fs.existsSync(dir) && fs.readdirSync(dir).some(name => name.endsWith('-summary.json')))
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0] || legacy;
+}
+
+const RESULTS_DIR = path.resolve(process.argv[2] || latestResults());
 const OUT_FILE = path.resolve(
-  process.argv[3] || path.join(__dirname, '..', 'results', 'report.html')
+  process.argv[3] || path.join(RESULTS_DIR, 'report.html')
 );
 
 const LABELS = {
@@ -51,7 +59,7 @@ const ms = (value) => {
 
 function readSummary(file) {
   const summary = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const metrics = summary.metrics || {};
+  const metrics = Object.fromEntries(Object.entries(summary.metrics || {}).map(([key, metric]) => [key, metric.values ? { ...metric.values, value: metric.values.rate, thresholds: metric.thresholds } : metric]));
   const base = path.basename(file, '-summary.json');
   const duration = metrics['http_req_duration'] || {};
   const failed = metrics['http_req_failed'] || {};
@@ -63,7 +71,7 @@ function readSummary(file) {
   let errorRate = Number(failed.value);
   if (!Number.isFinite(errorRate)) {
     const total = (Number(failed.passes) || 0) + (Number(failed.fails) || 0);
-    errorRate = total ? (Number(failed.fails) || 0) / total : 0;
+    errorRate = total ? (Number(failed.passes) || 0) / total : NaN;
   }
 
   const endpoints = Object.keys(metrics)
@@ -79,12 +87,17 @@ function readSummary(file) {
     ? readResources(resourcesFile)
     : null;
 
-  const checkRate = Number(checks.value);
-  const p95 = Number(duration['p(95)']);
-  const status =
-    (Number.isFinite(errorRate) ? errorRate <= 0.02 : true) &&
-    (Number.isFinite(checkRate) ? checkRate >= 0.98 : true) &&
-    (!Number.isFinite(p95) || p95 < 2000);
+  const checkTotal = (Number(checks.passes) || 0) + (Number(checks.fails) || 0);
+  const checkRate = checks.value == null ? (checkTotal ? Number(checks.passes) / checkTotal : NaN) : Number(checks.value);
+  // Legacy --summary-export booleans mean "failed"; handleSummary uses {ok}.
+  const thresholds = Object.values(metrics).flatMap(metric => Object.values(metric.thresholds || {}));
+  let status = thresholds.length ? thresholds.every(result => typeof result === 'boolean' ? !result : result.ok === true) : null;
+  const executionFile = path.join(RESULTS_DIR, 'execution.json');
+  if (fs.existsSync(executionFile)) {
+    const execution = JSON.parse(fs.readFileSync(executionFile, 'utf8'));
+    const run = (execution.runs || []).find(run => run.name === base);
+    if (run && run.exitCode !== 0) status = false;
+  }
 
   return {
     base,
@@ -110,13 +123,13 @@ function readResources(file) {
     .split(/\r?\n/)
     .filter(Boolean);
   if (lines.length < 2) return null;
-  const header = lines[0].split(',');
+  const header = lines[0].replace(/^\uFEFF/, '').split(',');
   const rows = lines.slice(1).map((line) => line.split(','));
 
   const stats = {};
   header.slice(1).forEach((column, index) => {
     const values = rows
-      .map((row) => Number(row[index + 1]))
+      .map((row) => row[index + 1]?.trim() ? Number(row[index + 1]) : NaN)
       .filter((value) => Number.isFinite(value));
     if (!values.length) return;
     stats[column] = {
@@ -138,7 +151,9 @@ function kpi(label, value, hint) {
 
 function scenarioCard(run) {
   const errorPct = run.errorRate == null ? null : run.errorRate * 100;
-  const badge = run.status
+  const badge = run.status === null
+    ? '<span class="badge warn">Sin umbrales evaluados</span>'
+    : run.status
     ? '<span class="badge ok">Dentro de umbral</span>'
     : '<span class="badge warn">Revisar</span>';
 
@@ -375,8 +390,9 @@ function main() {
   ${gatlingReports()}
 
   <footer>
-    p95/p99: percentil de tiempo de respuesta. Los errores HTTP incluyen respuestas 4xx/5xx.
-    Los recursos se muestrean con <code>performance/scripts/monitor.sh</code>.
+    p95/p99: percentil de tiempo de respuesta. El estado usa los umbrales reales de cada escenario.
+    Los errores HTTP excluyen los estados esperados declarados en las pruebas (por ejemplo, 401 o rechazos de negocio).
+    Los recursos se muestrean con <code>performance/scripts/monitor.ps1</code> en Windows.
     Comando: <code>npm run perf:report</code>.
   </footer>
 </div>

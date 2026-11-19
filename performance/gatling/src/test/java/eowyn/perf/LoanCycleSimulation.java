@@ -24,10 +24,7 @@ public class LoanCycleSimulation extends Simulation {
 
   private final ScenarioBuilder scenario = scenario("S4 - Préstamos")
       .feed(csv("perf-users.csv").circular())
-      .exec(http("POST /api/auth/login")
-          .post("/api/auth/login")
-          .body(StringBody("{\"email\":\"#{email}\",\"password\":\"#{password}\"}"))
-          .check(status().is(200), jsonPath("$.token").saveAs("token")))
+      .exec(session -> session.set("token", Fixtures.userToken(session.getString("email"))))
       .exec(session -> session
           .set("bookId", Fixtures.randomBookId())
           .set("dueDate", LocalDate.now().plusDays(7).toString()))

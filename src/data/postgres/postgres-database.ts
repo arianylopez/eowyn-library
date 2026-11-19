@@ -17,6 +17,8 @@ export class PostgresDatabase {
     } catch (error) {
       console.error('pg connection error:', error);
       throw error;
+    } finally {
+      await client.end();
     }
   }
 }

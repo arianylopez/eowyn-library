@@ -40,6 +40,7 @@ public class SmokeSimulation extends Simulation {
           .set("catName", Fixtures.unique("GTL-SMOKE-CAT"))
           .set("bookTitle", Fixtures.unique("GTL-SMOKE-BOOK"))
           .set("bookIsbn", Fixtures.unique("GTL-SMOKE-ISBN"))
+          .set("categoryId", Fixtures.randomCategoryId())
           .set("bookId", Fixtures.randomBookId())
           .set("dueDate", LocalDate.now().plusDays(7).toString()))
       .exec(http("POST /api/categories")
@@ -58,7 +59,7 @@ public class SmokeSimulation extends Simulation {
           .body(StringBody(
               "{\"title\":\"#{bookTitle}\",\"author\":\"Gatling Author\"," +
                   "\"isbn\":\"#{bookIsbn}\",\"publicationYear\":2020," +
-                  "\"categoryId\":1,\"totalQuantity\":2,\"availableQuantity\":2}"))
+                  "\"categoryId\":#{categoryId},\"totalQuantity\":2,\"availableQuantity\":2}"))
           .check(status().is(201), jsonPath("$.id").saveAs("newBookId")))
       .exec(http("DELETE /api/books/{id}")
           .delete("/api/books/#{newBookId}")

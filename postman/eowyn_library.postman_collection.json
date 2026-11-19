@@ -84,7 +84,7 @@
               "urlencoded": [
                 {
                   "key": "name",
-                  "value": "Categoria QA {{$timestamp}}"
+                  "value": "Categoria QA {{$guid}}"
                 },
                 {
                   "key": "description",
@@ -136,7 +136,7 @@
               "urlencoded": [
                 {
                   "key": "name",
-                  "value": "Categoria QA actualizada {{$timestamp}}"
+                  "value": "Categoria QA actualizada {{$guid}}"
                 },
                 {
                   "key": "description",
@@ -197,7 +197,18 @@
               ]
             }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "script": {
+                "exec": [
+                  "pm.test(\"Listado responde 200 y contiene un arreglo\", function () { pm.response.to.have.status(200); pm.expect(pm.response.json().categories).to.be.an(\"array\"); });"
+                ],
+                "type": "text/javascript"
+              },
+              "listen": "test"
+            }
+          ]
         },
         {
           "name": "books",
@@ -238,7 +249,7 @@
                 },
                 {
                   "key": "isbn",
-                  "value": "978{{$timestamp}}"
+                  "value": "QA-{{$guid}}"
                 },
                 {
                   "key": "publicationYear",
@@ -380,7 +391,18 @@
               ]
             }
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "script": {
+                "exec": [
+                  "pm.test(\"Listado responde 200 y contiene un arreglo\", function () { pm.response.to.have.status(200); pm.expect(pm.response.json().books).to.be.an(\"array\"); });"
+                ],
+                "type": "text/javascript"
+              },
+              "listen": "test"
+            }
+          ]
         },
         {
           "name": "create loan",
@@ -669,18 +691,5 @@
       ]
     }
   ],
-  "variable": [
-    {
-      "key": "json_web_token_0gyj",
-      "secret": true
-    },
-    {
-      "key": "json_web_token_0lvb",
-      "secret": true
-    },
-    {
-      "key": "json_web_token_0nth",
-      "secret": true
-    }
-  ]
+  "variable": []
 }
